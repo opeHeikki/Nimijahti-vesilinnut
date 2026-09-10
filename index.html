@@ -1,0 +1,579 @@
+<!DOCTYPE html>
+<html lang="fi">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>Nimijahti / vesilinnut</title>
+  <style>
+    :root {
+      --duolingo-green: #58cc02;
+      --duolingo-dark-green: #46a302;
+      --duolingo-blue: #1cb0f6;
+      --duolingo-gray: #e5e5e5;
+      --duolingo-card-border: #bce0fd;
+      --duolingo-wrong: #ff4b4b;
+      --duolingo-wrong-bg: #ffdfe0;
+      --duolingo-correct-bg: #d7ffb8;
+      --btn-width: 180px;
+    }
+
+    * {
+      box-sizing: border-box;
+      -webkit-touch-callout: none;
+      -webkit-user-select: none;
+      user-select: none;
+    }
+
+    html, body {
+      height: 100%;
+      overflow: hidden;
+    }
+
+    body {
+      font-family: 'din-round', system-ui, -apple-system, sans-serif;
+      background-color: #f7f7f7;
+      margin: 0;
+      padding: 10px;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      color: #3c3c3c;
+      touch-action: manipulation;
+    }
+
+    @keyframes varivilkutus {
+      0% { background-color: #ff4b4b; }
+      20% { background-color: #58cc02; }
+      40% { background-color: #1cb0f6; }
+      60% { background-color: #ffc800; }
+      80% { background-color: #ce82ff; }
+      100% { background-color: #ff4b4b; }
+    }
+
+    body.flashing {
+      animation: varivilkutus 3.5s linear infinite;
+    }
+
+    body.flashing #game-container {
+      background-color: transparent;
+      box-shadow: none;
+    }
+
+    #game-container {
+      width: 100%;
+      max-width: 900px;
+      height: 100%;
+      max-height: 700px;
+      padding: 12px;
+      background: white;
+      border-radius: 16px;
+      box-shadow: 0 6px 20px rgba(0, 0, 0, 0.08);
+      display: flex;
+      flex-direction: column;
+    }
+
+    header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 10px;
+      padding-bottom: 6px;
+      border-bottom: 2px solid var(--duolingo-gray);
+      flex-shrink: 0;
+    }
+
+    h1 {
+      font-size: 20px;
+      margin: 0;
+      color: var(--duolingo-dark-green);
+      font-weight: 800;
+    }
+
+    .stats {
+      display: flex;
+      gap: 16px;
+      font-weight: 700;
+      font-size: 17px;
+    }
+
+    #timer { color: var(--duolingo-blue); }
+    #score { color: var(--duolingo-green); }
+
+    #game-board {
+      display: flex;
+      gap: 12px;
+      flex: 1;
+      min-height: 0;
+      align-items: stretch;
+    }
+
+    .image-container {
+      flex: 1;
+      height: 100%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background-color: #fafafa;
+      border: 2px solid var(--duolingo-gray);
+      border-radius: 12px;
+      overflow: hidden;
+      padding: 6px;
+    }
+
+    #bird-image {
+      max-width: 100%;
+      max-height: 100%;
+      width: auto;
+      height: auto;
+      object-fit: contain;
+      border-radius: 6px;
+      opacity: 0;
+      transition: none;
+    }
+
+    #bird-image.visible {
+      opacity: 1;
+      transition: opacity 1s ease-in-out;
+    }
+
+    /* Painikkeiden väliksi muutettu 4px */
+    .names-container {
+      width: var(--btn-width);
+      height: 50%;
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+
+    .name-btn {
+      width: 100%;
+      flex: 1;
+      min-height: 0;
+      background: linear-gradient(to right, #b3d9ff, #f0f7ff);
+      border: 1px solid var(--duolingo-card-border);
+      border-radius: 6px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      text-align: center;
+      font-weight: 700;
+      font-size: 15px;
+      white-space: nowrap;
+      cursor: pointer;
+      transition: background 0.2s, border-color 0.2s, opacity 0.4s ease-in-out;
+      padding: 0 8px;
+      box-shadow: 0 1px 2px rgba(0,0,0,0.03);
+      opacity: 0;
+      visibility: hidden;
+      pointer-events: none;
+    }
+
+    .name-btn.visible {
+      opacity: 1;
+      visibility: visible;
+      pointer-events: auto;
+    }
+
+    .name-btn:active {
+      transform: translateY(1px);
+    }
+
+    .name-btn.wrong-flash {
+      background: var(--duolingo-wrong-bg) !important;
+      border-color: var(--duolingo-wrong) !important;
+      color: #d32f2f;
+    }
+
+    .name-btn.correct-reveal {
+      background: var(--duolingo-green) !important;
+      border-color: var(--duolingo-dark-green) !important;
+      color: white !important;
+    }
+
+    #game-over {
+      display: none;
+      flex-direction: column;
+      align-items: center;
+      justify-content: flex-start;
+      flex: 1;
+      gap: 12px;
+      text-align: center;
+      padding-top: 10px;
+      overflow-y: auto;
+    }
+
+    #result-message {
+      font-size: 19px;
+      font-weight: 800;
+      color: var(--duolingo-dark-green);
+      margin: 0;
+      padding: 0 5px;
+    }
+
+    .score-history-title {
+      font-size: 16px;
+      font-weight: 700;
+      margin-top: 6px;
+      margin-bottom: 4px;
+      color: #555;
+    }
+
+    #score-list {
+      list-style: none;
+      padding: 0;
+      margin: 0;
+      width: 100%;
+      max-width: 400px;
+      max-height: 220px;
+      overflow-y: auto;
+      border: 2px solid var(--duolingo-gray);
+      border-radius: 10px;
+      background: #fafafa;
+    }
+
+    #score-list li {
+      padding: 8px 12px;
+      font-size: 15px;
+      font-weight: 700;
+      border-bottom: 1px solid var(--duolingo-gray);
+      display: flex;
+      justify-content: space-between;
+    }
+
+    #score-list li:last-child {
+      border-bottom: none;
+    }
+
+    #score-list li.latest-score {
+      color: var(--duolingo-green);
+      font-weight: 900;
+      background-color: #f0fdf0;
+    }
+
+    #restart-btn {
+      background-color: var(--duolingo-green);
+      color: white;
+      border: none;
+      border-bottom: 4px solid var(--duolingo-dark-green);
+      padding: 12px 28px;
+      border-radius: 14px;
+      font-size: 19px;
+      font-weight: 800;
+      cursor: pointer;
+      text-transform: uppercase;
+      letter-spacing: 0.8px;
+      margin-top: auto;
+      margin-bottom: 10px;
+      transition: opacity 0.2s;
+    }
+
+    #restart-btn:active {
+      transform: translateY(2px);
+      border-bottom-width: 2px;
+    }
+
+    #restart-btn:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+      pointer-events: none;
+    }
+  </style>
+</head>
+<body>
+
+<div id="game-container">
+  <header>
+    <h1>Nimijahti / vesilinnut</h1>
+    <div class="stats">
+      <div id="score">Pisteet: <span id="points">0</span></div>
+      <div id="timer">Aika: <span id="time-left">30</span>s</div>
+    </div>
+  </header>
+
+  <div id="game-board">
+    <div class="image-container">
+      <img id="bird-image" src="" alt="Lintu">
+    </div>
+
+    <div class="names-container">
+      <button class="name-btn" id="btn-0"></button>
+      <button class="name-btn" id="btn-1"></button>
+      <button class="name-btn" id="btn-2"></button>
+      <button class="name-btn" id="btn-3"></button>
+      <button class="name-btn" id="btn-4"></button>
+      <button class="name-btn" id="btn-5"></button>
+    </div>
+  </div>
+
+  <div id="game-over">
+    <h2 id="result-message"></h2>
+    
+    <div class="score-history-title">Pistetaulukko (Top 20)</div>
+    <ul id="score-list"></ul>
+
+    <button id="restart-btn" onclick="aloitaPeli()">Pelaa uudelleen</button>
+  </div>
+</div>
+
+<script>
+  const kaikkiLinnut = [
+    { kuva: "kuvat/Valkoposkihanhi.jpg", nimi: "Valkoposkihanhi" },
+    { kuva: "kuvat/Kanadanhanhi.jpg", nimi: "Kanadanhanhi" },
+    { kuva: "kuvat/Tundrahanhi.jpg", nimi: "Tundrahanhi" },
+    { kuva: "kuvat/Metsähanhi.jpg", nimi: "Metsähanhi" },
+    { kuva: "kuvat/Laulujoutsen.jpg", nimi: "Laulujoutsen" },
+    { kuva: "kuvat/Kyhmyjoutsen.jpg", nimi: "Kyhmyjoutsen" },
+    { kuva: "kuvat/Kuikka.jpg", nimi: "Kuikka" },
+    { kuva: "kuvat/Sinisorsa koiras.jpg", nimi: "Sinisorsa koiras" },
+    { kuva: "kuvat/Sinisorsa naaras.jpg", nimi: "Sinisorsa naaras" },
+    { kuva: "kuvat/Telkkä koiras.jpg", nimi: "Telkkä koiras" },
+    { kuva: "kuvat/Telkkä naaras.jpg", nimi: "Telkkä naaras" },
+    { kuva: "kuvat/Kurki.jpg", nimi: "Kurki" },
+    { kuva: "kuvat/Töyhtöhyyppä.jpg", nimi: "Töyhtöhyyppä" },
+    { kuva: "kuvat/Kuovi.jpg", nimi: "Kuovi" },
+    { kuva: "kuvat/Rantasipi.jpg", nimi: "Rantasipi" },
+    { kuva: "kuvat/Naurulokki.jpg", nimi: "Naurulokki" },
+    { kuva: "kuvat/Kalalokki.jpg", nimi: "Kalalokki" },
+    { kuva: "kuvat/Harmaalokki.jpg", nimi: "Harmaalokki" },
+    { kuva: "kuvat/Kalatiira.jpg", nimi: "Kalatiira" },
+    { kuva: "kuvat/Merikotka.jpg", nimi: "Merikotka" },
+    { kuva: "kuvat/Silkkiuikku.jpg", nimi: "Silkkiuikku" },
+    { kuva: "kuvat/Lehtokurppa.jpg", nimi: "Lehtokurppa" },
+    { kuva: "kuvat/Tavi.jpg", nimi: "Tavi" },
+    { kuva: "kuvat/Harmaahaikara.jpg", nimi: "Harmaahaikara" },
+    { kuva: "kuvat/Tukkasotka.jpg", nimi: "Tukkasotka" },
+    { kuva: "kuvat/Isokoskelo.jpg", nimi: "Isokoskelo" },
+    { kuva: "kuvat/Nokikana.jpg", nimi: "Nokikana" },
+    { kuva: "kuvat/Liro.jpg", nimi: "Liro" },
+    { kuva: "kuvat/Metsäviklo.jpg", nimi: "Metsäviklo" },
+    { kuva: "kuvat/Ruokokerttunen.jpg", nimi: "Ruokokerttunen" },
+    { kuva: "kuvat/Pajusirkku.jpg", nimi: "Pajusirkku" },
+    { kuva: "kuvat/Sääksi.jpg", nimi: "Sääksi" }, 
+    { kuva: "kuvat/Haahka.jpg", nimi: "Haahka" },
+    { kuva: "kuvat/Merimetso.jpg", nimi: "Merimetso" },
+    { kuva: "kuvat/Merilokki.jpg", nimi: "Merilokki" }
+  ];
+
+  let pisteet = 0;
+  let aikaaJäljellä = 30;
+  let kokonaisAika = 0;
+  let ajastin = null;
+  let delayTimer = null;
+  let peliKaynnissa = false;
+  let nykyinenOikea = null;
+  let vaaratKerrat = 0;
+
+  function muotoileNimi(nimi) {
+    return nimi;
+  }
+
+  function laskePainikkeenLeveys() {
+    const dummy = document.createElement('div');
+    dummy.style.position = 'absolute';
+    dummy.style.visibility = 'hidden';
+    dummy.style.whiteSpace = 'nowrap';
+    dummy.style.fontSize = '15px';
+    dummy.style.fontWeight = '700';
+    dummy.style.fontFamily = "'din-round', system-ui, -apple-system, sans-serif";
+    dummy.style.padding = '0 8px';
+    document.body.appendChild(dummy);
+
+    let maxLeveys = 0;
+    kaikkiLinnut.forEach(lintu => {
+      dummy.textContent = lintu.nimi;
+      if (dummy.clientWidth > maxLeveys) {
+        maxLeveys = dummy.clientWidth;
+      }
+    });
+    document.body.removeChild(dummy);
+
+    const lopullinenLeveys = maxLeveys + 24; 
+    document.documentElement.style.setProperty('--btn-width', `${lopullinenLeveys}px`);
+  }
+
+  function sekoita(array) {
+    const arr = [...array];
+    for (let i = arr.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [arr[i], arr[j]] = [arr[j], arr[i]];
+    }
+    return arr;
+  }
+
+  function aloitaPeli() {
+    laskePainikkeenLeveys();
+    document.body.classList.remove('flashing');
+    pisteet = 0;
+    aikaaJäljellä = 30;
+    kokonaisAika = 0;
+    peliKaynnissa = true;
+
+    document.getElementById('points').innerText = pisteet;
+    document.getElementById('time-left').innerText = aikaaJäljellä;
+    document.getElementById('game-over').style.display = 'none';
+    document.getElementById('game-board').style.display = 'flex';
+
+    uusiKierros();
+
+    clearInterval(ajastin);
+    ajastin = setInterval(() => {
+      aikaaJäljellä--;
+      kokonaisAika++;
+      document.getElementById('time-left').innerText = aikaaJäljellä;
+      if (aikaaJäljellä <= 0) lopetaPeli();
+    }, 1000);
+  }
+
+  function uusiKierros() {
+    if (!peliKaynnissa) return;
+
+    clearTimeout(delayTimer);
+    vaaratKerrat = 0;
+
+    nykyinenOikea = kaikkiLinnut[Math.floor(Math.random() * kaikkiLinnut.length)];
+    const muutLinnut = kaikkiLinnut.filter(l => l.nimi !== nykyinenOikea.nimi);
+    const sekoitetutMuut = sekoita(muutLinnut).slice(0, 5);
+    const kaikkiKuusi = sekoita([nykyinenOikea, ...sekoitetutMuut]);
+
+    const imgElement = document.getElementById('bird-image');
+    imgElement.classList.remove('visible');
+
+    const napit = document.querySelectorAll('.name-btn');
+    napit.forEach(nappi => {
+      nappi.classList.remove('visible', 'wrong-flash', 'correct-reveal');
+      nappi.disabled = true;
+    });
+
+    // Luotettava kuvan esilataus ja feidaus näkyviin
+    const uusiKuva = new Image();
+    let ladattu = false;
+
+    const suoritaFeidaus = () => {
+      if (ladattu || !peliKaynnissa) return;
+      ladattu = true;
+      imgElement.src = nykyinenOikea.kuva;
+      void imgElement.offsetWidth; // Pakotetaan reflow, jotta opacity: 0 rekisteröidään ennen tilaa 1
+      requestAnimationFrame(() => {
+        imgElement.classList.add('visible');
+      });
+    };
+
+    uusiKuva.onload = suoritaFeidaus;
+    uusiKuva.src = nykyinenOikea.kuva;
+
+    if (uusiKuva.complete && uusiKuva.naturalWidth !== 0) {
+      setTimeout(suoritaFeidaus, 50);
+    }
+
+    delayTimer = setTimeout(() => {
+      if (!peliKaynnissa) return;
+
+      napit.forEach((nappi, idx) => {
+        const lintu = kaikkiKuusi[idx];
+        nappi.textContent = muotoileNimi(lintu.nimi);
+        nappi.dataset.nimi = lintu.nimi;
+        nappi.onclick = () => tarkistaValinta(nappi, lintu.nimi);
+        nappi.disabled = false;
+        nappi.classList.add('visible');
+      });
+    }, 3000);
+  }
+
+  function tarkistaValinta(nappi, valittuNimi) {
+    if (!peliKaynnissa || nappi.disabled) return;
+
+    if (valittuNimi === nykyinenOikea.nimi) {
+      pisteet += 2;
+      aikaaJäljellä += 4;
+      document.getElementById('points').innerText = pisteet;
+      document.getElementById('time-left').innerText = aikaaJäljellä;
+      uusiKierros();
+    } else {
+      pisteet -= 1;
+      vaaratKerrat++;
+      document.getElementById('points').innerText = pisteet;
+
+      if (vaaratKerrat >= 2) {
+        const napit = document.querySelectorAll('.name-btn');
+        napit.forEach(b => b.disabled = true);
+
+        napit.forEach(b => {
+          if (b.dataset.nimi === nykyinenOikea.nimi) {
+            b.classList.add('correct-reveal');
+          }
+        });
+
+        setTimeout(() => {
+          if (peliKaynnissa) uusiKierros();
+        }, 1000);
+
+      } else {
+        nappi.classList.add('wrong-flash');
+        nappi.disabled = true;
+
+        setTimeout(() => {
+          nappi.classList.remove('wrong-flash');
+          nappi.disabled = false;
+        }, 500);
+      }
+    }
+  }
+
+  function lopetaPeli() {
+    peliKaynnissa = false;
+    clearInterval(ajastin);
+    clearTimeout(delayTimer);
+
+    document.getElementById('game-board').style.display = 'none';
+
+    const restartBtn = document.getElementById('restart-btn');
+    restartBtn.disabled = true;
+    setTimeout(() => {
+      restartBtn.disabled = false;
+    }, 2000);
+
+    const storageKey = 'nimijahti_vesilinnut_pisteet';
+    let historia = JSON.parse(localStorage.getItem(storageKey) || '[]');
+    const aiempiEnnatys = historia.length > 0 ? Math.max(...historia.map(h => h.pisteet)) : -Infinity;
+    const uusiEnnatys = pisteet > aiempiEnnatys && pisteet > 0;
+
+    const uusiTulos = { id: Date.now(), pisteet: pisteet, aika: kokonaisAika };
+    historia.push(uusiTulos);
+
+    historia.sort((a, b) => b.pisteet - a.pisteet);
+    historia = historia.slice(0, 20);
+
+    localStorage.setItem(storageKey, JSON.stringify(historia));
+
+    const msgElement = document.getElementById('result-message');
+    if (uusiEnnatys) {
+      msgElement.innerText = `Mahtavaa! Teit ennätyksesi ${pisteet} pistettä!`;
+      document.body.classList.add('flashing');
+      setTimeout(() => {
+        document.body.classList.remove('flashing');
+      }, 5000);
+    } else {
+      msgElement.innerText = `Peli päättyi: sait ${pisteet} pistettä!`;
+    }
+
+    const scoreList = document.getElementById('score-list');
+    scoreList.innerHTML = '';
+
+    historia.forEach((item, index) => {
+      const li = document.createElement('li');
+      li.innerHTML = `<span>#${index + 1}</span> <span>${item.pisteet} p (${item.aika}s)</span>`;
+      if (item.id === uusiTulos.id) {
+        li.className = 'latest-score';
+      }
+      scoreList.appendChild(li);
+    });
+
+    document.getElementById('game-over').style.display = 'flex';
+  }
+
+  window.addEventListener('contextmenu', (e) => e.preventDefault());
+
+  aloitaPeli();
+</script>
+</body>
+</html>
