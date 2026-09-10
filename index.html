@@ -136,7 +136,6 @@
       transition: opacity 1s ease-in-out;
     }
 
-    /* Painikkeiden väliksi muutettu 4px */
     .names-container {
       width: var(--btn-width);
       height: 50%;
@@ -188,6 +187,39 @@
       background: var(--duolingo-green) !important;
       border-color: var(--duolingo-dark-green) !important;
       color: white !important;
+    }
+
+    /* Kännykkäoptimointi */
+    @media (max-width: 768px) {
+      #game-board {
+        flex-direction: column;
+        gap: 8px;
+      }
+
+      .image-container {
+        flex: 1;
+        width: 100%;
+        height: 50%;
+      }
+
+      .names-container {
+        width: 100% !important;
+        flex: 1;
+        height: 50%;
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        grid-template-rows: repeat(3, 1fr);
+        gap: 4px;
+      }
+
+      .name-btn {
+        width: 100%;
+        height: 100%;
+        white-space: normal;
+        line-height: 1.15;
+        font-size: 13px;
+        padding: 2px 4px;
+      }
     }
 
     #game-over {
@@ -354,6 +386,34 @@
     { kuva: "kuvat/Merilokki.jpg", nimi: "Merilokki" }
   ];
 
+  // Sanakirja yhdyssanojen tavutukselle
+  const yhdyssanaMappi = {
+    "Valkoposkihanhi": "Valkoposki-<br>hanhi",
+    "Kanadanhanhi": "Kanadan-<br>hanhi",
+    "Tundrahanhi": "Tundra-<br>hanhi",
+    "Metsähanhi": "Metsä-<br>hanhi",
+    "Laulujoutsen": "Laulu-<br>joutsen",
+    "Kyhmyjoutsen": "Kyhmy-<br>joutsen",
+    "Töyhtöhyyppä": "Töyhtö-<br>hyyppä",
+    "Rantasipi": "Ranta-<br>sipi",
+    "Naurulokki": "Nauru-<br>lokki",
+    "Kalalokki": "Kala-<br>lokki",
+    "Harmaalokki": "Harmaa-<br>lokki",
+    "Kalatiira": "Kala-<br>tiira",
+    "Merikotka": "Meri-<br>kotka",
+    "Silkkiuikku": "Silkki-<br>uikku",
+    "Lehtokurppa": "Lehto-<br>kurppa",
+    "Harmaahaikara": "Harmaa-<br>haikara",
+    "Tukkasotka": "Tukka-<br>sotka",
+    "Isokoskelo": "Iso-<br>koskelo",
+    "Nokikana": "Noki-<br>kana",
+    "Metsäviklo": "Metsä-<br>viklo",
+    "Ruokokerttunen": "Ruoko-<br>kerttunen",
+    "Pajusirkku": "Paju-<br>sirkku",
+    "Merimetso": "Meri-<br>metso",
+    "Merilokki": "Meri-<br>lokki"
+  };
+
   let pisteet = 0;
   let aikaaJäljellä = 30;
   let kokonaisAika = 0;
@@ -361,13 +421,24 @@
   let delayTimer = null;
   let peliKaynnissa = false;
   let nykyinenOikea = null;
+  let edellinenOikea = null;
   let vaaratKerrat = 0;
 
   function muotoileNimi(nimi) {
+    if (window.innerWidth <= 768) {
+      if (nimi.includes(' ')) {
+        return nimi.replace(' ', '<br>');
+      }
+      if (yhdyssanaMappi[nimi]) {
+        return yhdyssanaMappi[nimi];
+      }
+    }
     return nimi;
   }
 
   function laskePainikkeenLeveys() {
+    if (window.innerWidth <= 768) return;
+
     const dummy = document.createElement('div');
     dummy.style.position = 'absolute';
     dummy.style.visibility = 'hidden';
@@ -407,6 +478,7 @@
     aikaaJäljellä = 30;
     kokonaisAika = 0;
     peliKaynnissa = true;
+    edellinenOikea = null;
 
     document.getElementById('points').innerText = pisteet;
     document.getElementById('time-left').innerText = aikaaJäljellä;
@@ -430,7 +502,13 @@
     clearTimeout(delayTimer);
     vaaratKerrat = 0;
 
-    nykyinenOikea = kaikkiLinnut[Math.floor(Math.random() * kaikkiLinnut.length)];
+    const mahdollisetLinnut = kaikkiLinnut.filter(
+      l => !edellinenOikea || l.nimi !== edellinenOikea.nimi
+    );
+
+    nykyinenOikea = mahdollisetLinnut[Math.floor(Math.random() * mahdollisetLinnut.length)];
+    edellinenOikea = nykyinenOikea;
+
     const muutLinnut = kaikkiLinnut.filter(l => l.nimi !== nykyinenOikea.nimi);
     const sekoitetutMuut = sekoita(muutLinnut).slice(0, 5);
     const kaikkiKuusi = sekoita([nykyinenOikea, ...sekoitetutMuut]);
@@ -444,7 +522,6 @@
       nappi.disabled = true;
     });
 
-    // Luotettava kuvan esilataus ja feidaus näkyviin
     const uusiKuva = new Image();
     let ladattu = false;
 
@@ -452,7 +529,7 @@
       if (ladattu || !peliKaynnissa) return;
       ladattu = true;
       imgElement.src = nykyinenOikea.kuva;
-      void imgElement.offsetWidth; // Pakotetaan reflow, jotta opacity: 0 rekisteröidään ennen tilaa 1
+      void imgElement.offsetWidth; 
       requestAnimationFrame(() => {
         imgElement.classList.add('visible');
       });
@@ -470,7 +547,7 @@
 
       napit.forEach((nappi, idx) => {
         const lintu = kaikkiKuusi[idx];
-        nappi.textContent = muotoileNimi(lintu.nimi);
+        nappi.innerHTML = muotoileNimi(lintu.nimi);
         nappi.dataset.nimi = lintu.nimi;
         nappi.onclick = () => tarkistaValinta(nappi, lintu.nimi);
         nappi.disabled = false;
@@ -570,6 +647,10 @@
 
     document.getElementById('game-over').style.display = 'flex';
   }
+
+  window.addEventListener('resize', () => {
+    laskePainikkeenLeveys();
+  });
 
   window.addEventListener('contextmenu', (e) => e.preventDefault());
 
